@@ -257,6 +257,20 @@ internal static unsafe class Smoke
                 threw = true;
             }
             Check(threw, "uniffi UTryOp throws Denied");
+
+            var s = Payloads.AsciiString(64);
+            Check(Stock.UTakeStringChecked(s, false) == Payloads.Checksum(0, s),
+                "uniffi UTakeStringChecked ok");
+            var threwChecked = false;
+            try
+            {
+                Stock.UTakeStringChecked(s, true);
+            }
+            catch (uniffi.benchffi.BenchException.Denied)
+            {
+                threwChecked = true;
+            }
+            Check(threwChecked, "uniffi UTakeStringChecked throws Denied");
         }
 
         return Summarize("stock");
@@ -287,6 +301,28 @@ internal static unsafe class Smoke
             var jsonUtf8 = JsonSerializer.SerializeToUtf8Bytes(list);
             Check(SpanApi.UTakeStringListJsonSpan(jsonUtf8) == expected,
                 "UTakeStringListJsonSpan");
+        }
+
+        // Throwing string function: exercises the *_raw error path (status populated
+        // by uniffi::rust_call in api_raw.rs, lifted by CheckCallStatus in C#).
+        {
+            var s = Payloads.AsciiString(64);
+            var utf8 = Payloads.AsciiStringUtf8(64);
+            ulong expected = Payloads.Checksum(0, s);
+            Check(SpanApi.UTakeStringChecked(s, false) == expected,
+                "span-delegated UTakeStringChecked ok");
+            Check(SpanApi.UTakeStringCheckedSpan(utf8, false) == expected,
+                "UTakeStringCheckedSpan ok");
+            var threw = false;
+            try
+            {
+                SpanApi.UTakeStringCheckedSpan(utf8, true);
+            }
+            catch (uniffi.benchffi_span.BenchException.Denied)
+            {
+                threw = true;
+            }
+            Check(threw, "UTakeStringCheckedSpan throws Denied");
         }
 
         // Callbacks through the span-flavor bindings (vtable now owned by this flavor).

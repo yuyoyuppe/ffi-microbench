@@ -184,3 +184,14 @@ pub fn u_try_op(should_fail: bool) -> Result<(), BenchError> {
         Ok(())
     }
 }
+
+/// Case 13 companion: a throwing function WITH a string argument, so the span
+/// fast path's error propagation (status check + error lift) is exercised too.
+#[uniffi::export]
+pub fn u_take_string_checked(s: String, should_fail: bool) -> Result<u64, BenchError> {
+    if should_fail {
+        Err(BenchError::Denied)
+    } else {
+        Ok(checksum_str(0, &s))
+    }
+}

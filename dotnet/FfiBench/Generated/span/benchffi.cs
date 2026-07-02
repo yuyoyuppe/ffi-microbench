@@ -249,14 +249,12 @@ class _UniffiHelpers {
     public delegate void RustCallAction(ref UniffiRustCallStatus status);
     public delegate U RustCallFunc<out U>(ref UniffiRustCallStatus status);
 
-    // Call a rust function that returns a Result<>.  Pass in the Error class companion that corresponds to the Err
-    public static U RustCallWithError<U, E>(CallStatusErrorHandler<E> errorHandler, RustCallFunc<U> callback)
+    // Check the status of an already-completed rust call and throw on failure.
+    public static void CheckCallStatus<E>(CallStatusErrorHandler<E> errorHandler, ref UniffiRustCallStatus status)
         where E: System.Exception
     {
-        var status = new UniffiRustCallStatus();
-        var return_value = callback(ref status);
         if (status.IsSuccess()) {
-            return return_value;
+            return;
         } else if (status.IsError()) {
             throw errorHandler.Lift(status.error_buf);
         } else if (status.IsPanic()) {
@@ -271,6 +269,16 @@ class _UniffiHelpers {
         } else {
             throw new InternalException($"Unknown rust call status: {status.code}");
         }
+    }
+
+    // Call a rust function that returns a Result<>.  Pass in the Error class companion that corresponds to the Err
+    public static U RustCallWithError<U, E>(CallStatusErrorHandler<E> errorHandler, RustCallFunc<U> callback)
+        where E: System.Exception
+    {
+        var status = new UniffiRustCallStatus();
+        var return_value = callback(ref status);
+        CheckCallStatus(errorHandler, ref status);
+        return return_value;
     }
 
     // Call a rust function that returns a Result<>.  Pass in the Error class companion that corresponds to the Err
@@ -814,6 +822,8 @@ static class _UniFFILib {
     
     
     
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1074,6 +1084,17 @@ static class _UniFFILib {
     public static extern
 #endif
      ulong uniffi_benchffi_fn_func_u_take_string(RustBuffer @s,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    #if NET8_0_OR_GREATER
+    [LibraryImport("benchffi")]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static partial
+#else
+    [DllImport("benchffi", CallingConvention = CallingConvention.Cdecl)]
+    public static extern
+#endif
+     ulong uniffi_benchffi_fn_func_u_take_string_checked(RustBuffer @s,sbyte @shouldFail,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     #if NET8_0_OR_GREATER
@@ -1876,6 +1897,17 @@ static class _UniFFILib {
     [DllImport("benchffi", CallingConvention = CallingConvention.Cdecl)]
     public static extern
 #endif
+     ushort uniffi_benchffi_checksum_func_u_take_string_checked(
+    );
+
+    #if NET8_0_OR_GREATER
+    [LibraryImport("benchffi")]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static partial
+#else
+    [DllImport("benchffi", CallingConvention = CallingConvention.Cdecl)]
+    public static extern
+#endif
      ushort uniffi_benchffi_checksum_func_u_take_string_list(
     );
 
@@ -2001,6 +2033,16 @@ static class _UniFFILib {
     
     
     
+    [DllImport("benchffi", CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe  ulong uniffi_benchffi_fn_func_u_take_string_checked_raw(
+        byte* @s_ptr,
+        int @s_len,
+        sbyte @shouldFail,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    
+    
+    
     
     
     [DllImport("benchffi", CallingConvention = CallingConvention.Cdecl)]
@@ -2121,6 +2163,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_benchffi_checksum_func_u_take_string();
             if (checksum != 16419) {
                 throw new UniffiContractChecksumException($"uniffi.benchffi_span: uniffi bindings expected function `uniffi_benchffi_checksum_func_u_take_string` checksum `16419`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_benchffi_checksum_func_u_take_string_checked();
+            if (checksum != 23222) {
+                throw new UniffiContractChecksumException($"uniffi.benchffi_span: uniffi bindings expected function `uniffi_benchffi_checksum_func_u_take_string_checked` checksum `23222`, library returned `{checksum}`");
             }
         }
         {
@@ -3183,7 +3231,6 @@ class FfiConverterDictionaryStringString: FfiConverterRustBuffer<Dictionary<stri
 #pragma warning restore 8625
 internal static class BenchffiMethods {
     public static ulong UAdd(ulong @a, ulong @b) {
-                
         return FfiConverterUInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_add(FfiConverterUInt64.INSTANCE.Lower(@a), FfiConverterUInt64.INSTANCE.Lower(@b), ref _status)
@@ -3196,7 +3243,6 @@ internal static class BenchffiMethods {
 
 
     public static void UFireScalar(uint @times) {
-                
         
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_fire_scalar(FfiConverterUInt32.INSTANCE.Lower(@times), ref _status)
@@ -3213,7 +3259,6 @@ internal static class BenchffiMethods {
     /// encodes a fresh buffer per call (str_to_utf16).
     /// </summary>
     public static void UFireString(uint @times, uint @msgLen) {
-                
         
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_fire_string(FfiConverterUInt32.INSTANCE.Lower(@times), FfiConverterUInt32.INSTANCE.Lower(@msgLen), ref _status)
@@ -3226,7 +3271,6 @@ internal static class BenchffiMethods {
 
 
     public static byte[] UGiveBytes(uint @n) {
-                
         return FfiConverterByteArray.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_give_bytes(FfiConverterUInt32.INSTANCE.Lower(@n), ref _status)
@@ -3239,7 +3283,6 @@ internal static class BenchffiMethods {
 
 
     public static Dictionary<string, string> UGiveMap(uint @count) {
-                
         return FfiConverterDictionaryStringString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_give_map(FfiConverterUInt32.INSTANCE.Lower(@count), ref _status)
@@ -3252,7 +3295,6 @@ internal static class BenchffiMethods {
 
 
     public static BenchRecord[] UGiveRecords(uint @count) {
-                
         return FfiConverterSequenceTypeBenchRecord.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_give_records(FfiConverterUInt32.INSTANCE.Lower(@count), ref _status)
@@ -3265,7 +3307,6 @@ internal static class BenchffiMethods {
 
 
     public static WindowRequest UGiveRequest() {
-                
         return FfiConverterTypeWindowRequest.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_give_request( ref _status)
@@ -3278,7 +3319,6 @@ internal static class BenchffiMethods {
 
 
     public static string UGiveString(uint @n) {
-                
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_give_string(FfiConverterUInt32.INSTANCE.Lower(@n), ref _status)
@@ -3291,7 +3331,6 @@ internal static class BenchffiMethods {
 
 
     public static string[] UGiveStringList(uint @count) {
-                
         return FfiConverterSequenceString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_give_string_list(FfiConverterUInt32.INSTANCE.Lower(@count), ref _status)
@@ -3304,7 +3343,6 @@ internal static class BenchffiMethods {
 
 
     public static void UNop() {
-                
         
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_nop( ref _status)
@@ -3317,7 +3355,6 @@ internal static class BenchffiMethods {
 
 
     public static void URegisterScalarCallback(ScalarCallback @cb) {
-                
         
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_register_scalar_callback(FfiConverterTypeScalarCallback.INSTANCE.Lower(@cb), ref _status)
@@ -3330,7 +3367,6 @@ internal static class BenchffiMethods {
 
 
     public static void URegisterStringCallback(StringCallback @cb) {
-                
         
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_register_string_callback(FfiConverterTypeStringCallback.INSTANCE.Lower(@cb), ref _status)
@@ -3343,7 +3379,6 @@ internal static class BenchffiMethods {
 
 
     public static ulong UTakeBytes(byte[] @b) {
-                
         return FfiConverterUInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_take_bytes(FfiConverterByteArray.INSTANCE.Lower(@b), ref _status)
@@ -3356,7 +3391,6 @@ internal static class BenchffiMethods {
 
 
     public static ulong UTakeMap(Dictionary<string, string> @m) {
-                
         return FfiConverterUInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_take_map(FfiConverterDictionaryStringString.INSTANCE.Lower(@m), ref _status)
@@ -3369,7 +3403,6 @@ internal static class BenchffiMethods {
 
 
     public static ulong UTakeRecords(BenchRecord[] @v) {
-                
         return FfiConverterUInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_take_records(FfiConverterSequenceTypeBenchRecord.INSTANCE.Lower(@v), ref _status)
@@ -3382,7 +3415,6 @@ internal static class BenchffiMethods {
 
 
     public static ulong UTakeRequest(WindowRequest @r) {
-                
         return FfiConverterUInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_take_request(FfiConverterTypeWindowRequest.INSTANCE.Lower(@r), ref _status)
@@ -3396,16 +3428,10 @@ internal static class BenchffiMethods {
 
     public static ulong UTakeString(string @s) {
         
-        
         var @sUtf8 = System.Text.Encoding.UTF8.GetBytes(@s);
         return UTakeStringSpan(
             @sUtf8
         );
-        
-        return FfiConverterUInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_take_string(FfiConverterString.INSTANCE.Lower(@s), ref _status)
-));
     }
 
 
@@ -3428,9 +3454,50 @@ internal static class BenchffiMethods {
                 @sUtf8.Length,
                 ref _status
             );
-            if (!_status.IsSuccess()) {
-                throw new InternalException("Unexpected error in u_take_string");
-            }
+            _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+
+            return FfiConverterUInt64.INSTANCE.Lift(result);
+        }
+    }
+
+
+    /// <summary>
+    /// Case 13 companion: a throwing function WITH a string argument, so the span
+    /// fast path's error propagation (status check + error lift) is exercised too.
+    /// </summary>
+    /// <exception cref="BenchException"></exception>
+    public static ulong UTakeStringChecked(string @s, bool @shouldFail) {
+        
+        var @sUtf8 = System.Text.Encoding.UTF8.GetBytes(@s);
+        return UTakeStringCheckedSpan(
+            @sUtf8, 
+            @shouldFail
+        );
+    }
+
+
+
+
+
+
+
+
+    /// <summary>
+    /// High-performance variant using ReadOnlySpan&lt;byte&gt; for zero-copy string handling.
+    /// String parameters are passed as UTF-8 encoded spans to avoid RustBuffer allocations.
+    /// </summary>
+    /// <exception cref="BenchException"></exception>
+    public static unsafe ulong UTakeStringCheckedSpan(ReadOnlySpan<byte> @sUtf8, bool @shouldFail) {
+        UniffiRustCallStatus _status = default;
+        fixed (byte* @sPtr = @sUtf8)
+        {
+            var result = _UniFFILib.uniffi_benchffi_fn_func_u_take_string_checked_raw(
+                @sPtr,
+                @sUtf8.Length,
+                FfiConverterBoolean.INSTANCE.Lower(@shouldFail),
+                ref _status
+            );
+            _UniffiHelpers.CheckCallStatus(FfiConverterTypeBenchError.INSTANCE, ref _status);
 
             return FfiConverterUInt64.INSTANCE.Lift(result);
         }
@@ -3438,7 +3505,6 @@ internal static class BenchffiMethods {
 
 
     public static ulong UTakeStringList(string[] @v) {
-                
         return FfiConverterUInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_take_string_list(FfiConverterSequenceString.INSTANCE.Lower(@v), ref _status)
@@ -3452,16 +3518,10 @@ internal static class BenchffiMethods {
 
     public static ulong UTakeStringListJson(string @json) {
         
-        
         var @jsonUtf8 = System.Text.Encoding.UTF8.GetBytes(@json);
         return UTakeStringListJsonSpan(
             @jsonUtf8
         );
-        
-        return FfiConverterUInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_take_string_list_json(FfiConverterString.INSTANCE.Lower(@json), ref _status)
-));
     }
 
 
@@ -3484,9 +3544,7 @@ internal static class BenchffiMethods {
                 @jsonUtf8.Length,
                 ref _status
             );
-            if (!_status.IsSuccess()) {
-                throw new InternalException("Unexpected error in u_take_string_list_json");
-            }
+            _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
 
             return FfiConverterUInt64.INSTANCE.Lift(result);
         }
@@ -3495,7 +3553,6 @@ internal static class BenchffiMethods {
 
     /// <exception cref="BenchException"></exception>
     public static void UTryOp(bool @shouldFail) {
-                
         
     _UniffiHelpers.RustCallWithError(FfiConverterTypeBenchError.INSTANCE, (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_try_op(FfiConverterBoolean.INSTANCE.Lower(@shouldFail), ref _status)

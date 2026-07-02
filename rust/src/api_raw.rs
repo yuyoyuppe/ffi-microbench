@@ -7,6 +7,7 @@
 
 use uniffi::RustCallStatus;
 
+use crate::api_uniffi::BenchError;
 use crate::types::checksum_str;
 
 unsafe fn borrow_utf8<'a>(ptr: *const u8, len: i32) -> &'a str {
@@ -25,6 +26,27 @@ pub unsafe extern "C" fn uniffi_benchffi_fn_func_u_take_string_raw(
 ) -> u64 {
     let s = unsafe { borrow_utf8(ptr, len) };
     checksum_str(0, s)
+}
+
+/// Throwing variant: populates the status like generated scaffolding does, via
+/// the public uniffi::rust_call + LowerReturn machinery.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn uniffi_benchffi_fn_func_u_take_string_checked_raw(
+    ptr: *const u8,
+    len: i32,
+    should_fail: i8,
+    status: *mut RustCallStatus,
+) -> u64 {
+    let s = unsafe { borrow_utf8(ptr, len) };
+    let status = unsafe { &mut *status };
+    uniffi::rust_call(status, || {
+        let result = if should_fail != 0 {
+            Err(BenchError::Denied)
+        } else {
+            Ok(checksum_str(0, s))
+        };
+        <Result<u64, BenchError> as uniffi::LowerReturn<crate::UniFfiTag>>::lower_return(result)
+    })
 }
 
 #[unsafe(no_mangle)]

@@ -10,9 +10,8 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>preview</LangVersion>
-    <!-- CS0162: the span-flavor bindings intentionally leave the original implementation
-         unreachable after transparent delegation. CS8981/CS8500: mirrors csbindgen output. -->
-    <NoWarn>$(NoWarn);CS0162;CS8981;CS8500;CS1591</NoWarn>
+    <!-- CS8981/CS8500: mirrors csbindgen output. -->
+    <NoWarn>$(NoWarn);CS8981;CS8500;CS1591</NoWarn>
     <TieredPgo>true</TieredPgo>
   </PropertyGroup>
 

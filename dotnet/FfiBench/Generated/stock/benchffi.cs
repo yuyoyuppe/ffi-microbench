@@ -249,14 +249,12 @@ class _UniffiHelpers {
     public delegate void RustCallAction(ref UniffiRustCallStatus status);
     public delegate U RustCallFunc<out U>(ref UniffiRustCallStatus status);
 
-    // Call a rust function that returns a Result<>.  Pass in the Error class companion that corresponds to the Err
-    public static U RustCallWithError<U, E>(CallStatusErrorHandler<E> errorHandler, RustCallFunc<U> callback)
+    // Check the status of an already-completed rust call and throw on failure.
+    public static void CheckCallStatus<E>(CallStatusErrorHandler<E> errorHandler, ref UniffiRustCallStatus status)
         where E: System.Exception
     {
-        var status = new UniffiRustCallStatus();
-        var return_value = callback(ref status);
         if (status.IsSuccess()) {
-            return return_value;
+            return;
         } else if (status.IsError()) {
             throw errorHandler.Lift(status.error_buf);
         } else if (status.IsPanic()) {
@@ -271,6 +269,16 @@ class _UniffiHelpers {
         } else {
             throw new InternalException($"Unknown rust call status: {status.code}");
         }
+    }
+
+    // Call a rust function that returns a Result<>.  Pass in the Error class companion that corresponds to the Err
+    public static U RustCallWithError<U, E>(CallStatusErrorHandler<E> errorHandler, RustCallFunc<U> callback)
+        where E: System.Exception
+    {
+        var status = new UniffiRustCallStatus();
+        var return_value = callback(ref status);
+        CheckCallStatus(errorHandler, ref status);
+        return return_value;
     }
 
     // Call a rust function that returns a Result<>.  Pass in the Error class companion that corresponds to the Err
@@ -814,6 +822,8 @@ static class _UniFFILib {
     
     
     
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1074,6 +1084,17 @@ static class _UniFFILib {
     public static extern
 #endif
      ulong uniffi_benchffi_fn_func_u_take_string(RustBuffer @s,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    #if NET8_0_OR_GREATER
+    [LibraryImport("benchffi")]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static partial
+#else
+    [DllImport("benchffi", CallingConvention = CallingConvention.Cdecl)]
+    public static extern
+#endif
+     ulong uniffi_benchffi_fn_func_u_take_string_checked(RustBuffer @s,sbyte @shouldFail,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     #if NET8_0_OR_GREATER
@@ -1876,6 +1897,17 @@ static class _UniFFILib {
     [DllImport("benchffi", CallingConvention = CallingConvention.Cdecl)]
     public static extern
 #endif
+     ushort uniffi_benchffi_checksum_func_u_take_string_checked(
+    );
+
+    #if NET8_0_OR_GREATER
+    [LibraryImport("benchffi")]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    public static partial
+#else
+    [DllImport("benchffi", CallingConvention = CallingConvention.Cdecl)]
+    public static extern
+#endif
      ushort uniffi_benchffi_checksum_func_u_take_string_list(
     );
 
@@ -2065,6 +2097,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_benchffi_checksum_func_u_take_string();
             if (checksum != 16419) {
                 throw new UniffiContractChecksumException($"uniffi.benchffi: uniffi bindings expected function `uniffi_benchffi_checksum_func_u_take_string` checksum `16419`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_benchffi_checksum_func_u_take_string_checked();
+            if (checksum != 23222) {
+                throw new UniffiContractChecksumException($"uniffi.benchffi: uniffi bindings expected function `uniffi_benchffi_checksum_func_u_take_string_checked` checksum `23222`, library returned `{checksum}`");
             }
         }
         {
@@ -3247,6 +3285,21 @@ internal static class BenchffiMethods {
         return FfiConverterUInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_take_string(FfiConverterString.INSTANCE.Lower(@s), ref _status)
+));
+    }
+
+
+
+
+    /// <summary>
+    /// Case 13 companion: a throwing function WITH a string argument, so the span
+    /// fast path's error propagation (status check + error lift) is exercised too.
+    /// </summary>
+    /// <exception cref="BenchException"></exception>
+    public static ulong UTakeStringChecked(string @s, bool @shouldFail) {
+        return FfiConverterUInt64.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeBenchError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_benchffi_fn_func_u_take_string_checked(FfiConverterString.INSTANCE.Lower(@s), FfiConverterBoolean.INSTANCE.Lower(@shouldFail), ref _status)
 ));
     }
 
