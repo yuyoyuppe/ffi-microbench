@@ -1,0 +1,5 @@
+rust/target/
+dotnet/**/bin/
+dotnet/**/obj/
+results/
+*.user
