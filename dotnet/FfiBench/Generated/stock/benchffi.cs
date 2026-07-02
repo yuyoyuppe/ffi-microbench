@@ -526,6 +526,23 @@ class BigEndianStream {
         return result;
     }
 
+    // Decodes a UTF-8 string of `length` bytes directly from the underlying
+    // unmanaged memory when possible, avoiding an intermediate byte[] copy.
+    public string ReadUtf8String(int length) {
+        stream.CheckRemaining(length);
+#if NET8_0_OR_GREATER
+        if (stream is UnmanagedMemoryStream unmanagedStream) {
+            unsafe {
+                var result = System.Text.Encoding.UTF8.GetString(
+                    new ReadOnlySpan<byte>(unmanagedStream.PositionPointer, length));
+                unmanagedStream.Position += length;
+                return result;
+            }
+        }
+#endif
+        return System.Text.Encoding.UTF8.GetString(ReadBytes(length));
+    }
+
     public byte ReadByte() => (byte)stream.ReadUint32(bytesToRead: 1);
     public ushort ReadUShort() => (ushort)stream.ReadUint32(bytesToRead: 2);
     public uint ReadUInt() => (uint)stream.ReadUint32(bytesToRead: 4);
@@ -2243,8 +2260,16 @@ class FfiConverterString: FfiConverter<string, RustBuffer> {
     // store our length and avoid writing it out to the buffer.
     public override string Lift(RustBuffer value) {
         try {
-            var bytes = value.AsStream().ReadBytes(Convert.ToInt32(value.len));
+            var length = Convert.ToInt32(value.len);
+#if NET8_0_OR_GREATER
+            unsafe {
+                return System.Text.Encoding.UTF8.GetString(
+                    new ReadOnlySpan<byte>((byte*)value.data, length));
+            }
+#else
+            var bytes = value.AsStream().ReadBytes(length);
             return System.Text.Encoding.UTF8.GetString(bytes);
+#endif
         } finally {
             RustBuffer.Free(value);
         }
@@ -2252,15 +2277,23 @@ class FfiConverterString: FfiConverter<string, RustBuffer> {
 
     public override string Read(BigEndianStream stream) {
         var length = stream.ReadInt();
-        var bytes = stream.ReadBytes(length);
-        return System.Text.Encoding.UTF8.GetString(bytes);
+        return stream.ReadUtf8String(length);
     }
 
     public override RustBuffer Lower(string value) {
+#if NET8_0_OR_GREATER
+        var rbuf = RustBuffer.Alloc(System.Text.Encoding.UTF8.GetByteCount(value));
+        unsafe {
+            var dest = new Span<byte>((byte*)rbuf.data, Convert.ToInt32(rbuf.len));
+            System.Text.Encoding.UTF8.GetBytes(value, dest);
+        }
+        return rbuf;
+#else
         var bytes = System.Text.Encoding.UTF8.GetBytes(value);
         var rbuf = RustBuffer.Alloc(bytes.Length);
         rbuf.AsWriteableStream().WriteBytes(bytes);
         return rbuf;
+#endif
     }
 
     // TODO(CS)
@@ -2285,6 +2318,24 @@ class FfiConverterString: FfiConverter<string, RustBuffer> {
 
 class FfiConverterByteArray: FfiConverterRustBuffer<byte[]> {
     public static FfiConverterByteArray INSTANCE = new FfiConverterByteArray();
+
+#if NET8_0_OR_GREATER
+    // Copy straight out of the RustBuffer, skipping the stream machinery.
+    public override byte[] Lift(RustBuffer value) {
+        try {
+            unsafe {
+                var buffer = new ReadOnlySpan<byte>((byte*)value.data, Convert.ToInt32(value.len));
+                var length = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(buffer);
+                if (4 + length != buffer.Length) {
+                    throw new InternalException("junk remaining in buffer after lifting, something is very wrong!!");
+                }
+                return buffer.Slice(4, length).ToArray();
+            }
+        } finally {
+            RustBuffer.Free(value);
+        }
+    }
+#endif
 
     public override byte[] Read(BigEndianStream stream) {
         var length = stream.ReadInt();

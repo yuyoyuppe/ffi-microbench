@@ -17,8 +17,8 @@ provenance under .\results.
 #>
 [CmdletBinding()]
 param(
-    # BenchmarkDotNet glob filter, e.g. *Case04* or *CallbackScalar*.
-    [string]$Filter = "*",
+    # BenchmarkDotNet glob filter(s), e.g. *Case04* or '*Case05*','*Case07*'.
+    [string[]]$Filter = @("*"),
     # Use BDN's short job: fewer warmups/iterations. For iteration, not publication.
     [switch]$Quick,
     # Stop after the smoke verification.
@@ -106,7 +106,7 @@ filter               : $Filter
 quick                : $Quick
 "@ | Set-Content (Join-Path $resultsDir 'environment.txt')
 
-$bdnArgList = @('--filter', $Filter, '--artifacts', $resultsDir, '--stopOnFirstError')
+$bdnArgList = @('--filter') + $Filter + @('--artifacts', $resultsDir, '--stopOnFirstError')
 if ($Quick) {
     $bdnArgList += @('--job', 'short')
 }

@@ -303,6 +303,14 @@ internal static unsafe class Smoke
                 "UTakeStringListJsonSpan");
         }
 
+        // Bytes span fast path (byte[] delegates to span; span call is zero-copy in).
+        {
+            var data = Payloads.Bytes(4096);
+            ulong expected = 4096uL ^ data[^1];
+            Check(SpanApi.UTakeBytes(data) == expected, "span-delegated UTakeBytes");
+            Check(SpanApi.UTakeBytesSpan(data) == expected, "UTakeBytesSpan");
+        }
+
         // Throwing string function: exercises the *_raw error path (status populated
         // by uniffi::rust_call in api_raw.rs, lifted by CheckCallStatus in C#).
         {

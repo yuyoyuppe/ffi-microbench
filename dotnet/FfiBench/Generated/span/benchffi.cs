@@ -526,6 +526,23 @@ class BigEndianStream {
         return result;
     }
 
+    // Decodes a UTF-8 string of `length` bytes directly from the underlying
+    // unmanaged memory when possible, avoiding an intermediate byte[] copy.
+    public string ReadUtf8String(int length) {
+        stream.CheckRemaining(length);
+#if NET8_0_OR_GREATER
+        if (stream is UnmanagedMemoryStream unmanagedStream) {
+            unsafe {
+                var result = System.Text.Encoding.UTF8.GetString(
+                    new ReadOnlySpan<byte>(unmanagedStream.PositionPointer, length));
+                unmanagedStream.Position += length;
+                return result;
+            }
+        }
+#endif
+        return System.Text.Encoding.UTF8.GetString(ReadBytes(length));
+    }
+
     public byte ReadByte() => (byte)stream.ReadUint32(bytesToRead: 1);
     public ushort ReadUShort() => (ushort)stream.ReadUint32(bytesToRead: 2);
     public uint ReadUInt() => (uint)stream.ReadUint32(bytesToRead: 4);
@@ -2003,22 +2020,12 @@ static class _UniFFILib {
     
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    [DllImport("benchffi", CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe  ulong uniffi_benchffi_fn_func_u_take_bytes_raw(
+        byte* @b_ptr,
+        int @b_len,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
     
     
     
@@ -2032,7 +2039,6 @@ static class _UniFFILib {
 
     
     
-    
     [DllImport("benchffi", CallingConvention = CallingConvention.Cdecl)]
     public static extern unsafe  ulong uniffi_benchffi_fn_func_u_take_string_checked_raw(
         byte* @s_ptr,
@@ -2043,15 +2049,12 @@ static class _UniFFILib {
     
     
     
-    
-    
     [DllImport("benchffi", CallingConvention = CallingConvention.Cdecl)]
     public static extern unsafe  ulong uniffi_benchffi_fn_func_u_take_string_list_json_raw(
         byte* @json_ptr,
         int @json_len,ref UniffiRustCallStatus _uniffi_out_err
     );
 
-    
     
     
     
@@ -2309,8 +2312,16 @@ class FfiConverterString: FfiConverter<string, RustBuffer> {
     // store our length and avoid writing it out to the buffer.
     public override string Lift(RustBuffer value) {
         try {
-            var bytes = value.AsStream().ReadBytes(Convert.ToInt32(value.len));
+            var length = Convert.ToInt32(value.len);
+#if NET8_0_OR_GREATER
+            unsafe {
+                return System.Text.Encoding.UTF8.GetString(
+                    new ReadOnlySpan<byte>((byte*)value.data, length));
+            }
+#else
+            var bytes = value.AsStream().ReadBytes(length);
             return System.Text.Encoding.UTF8.GetString(bytes);
+#endif
         } finally {
             RustBuffer.Free(value);
         }
@@ -2318,15 +2329,23 @@ class FfiConverterString: FfiConverter<string, RustBuffer> {
 
     public override string Read(BigEndianStream stream) {
         var length = stream.ReadInt();
-        var bytes = stream.ReadBytes(length);
-        return System.Text.Encoding.UTF8.GetString(bytes);
+        return stream.ReadUtf8String(length);
     }
 
     public override RustBuffer Lower(string value) {
+#if NET8_0_OR_GREATER
+        var rbuf = RustBuffer.Alloc(System.Text.Encoding.UTF8.GetByteCount(value));
+        unsafe {
+            var dest = new Span<byte>((byte*)rbuf.data, Convert.ToInt32(rbuf.len));
+            System.Text.Encoding.UTF8.GetBytes(value, dest);
+        }
+        return rbuf;
+#else
         var bytes = System.Text.Encoding.UTF8.GetBytes(value);
         var rbuf = RustBuffer.Alloc(bytes.Length);
         rbuf.AsWriteableStream().WriteBytes(bytes);
         return rbuf;
+#endif
     }
 
     // TODO(CS)
@@ -2398,6 +2417,24 @@ class FfiConverterStringSpan {
 
 class FfiConverterByteArray: FfiConverterRustBuffer<byte[]> {
     public static FfiConverterByteArray INSTANCE = new FfiConverterByteArray();
+
+#if NET8_0_OR_GREATER
+    // Copy straight out of the RustBuffer, skipping the stream machinery.
+    public override byte[] Lift(RustBuffer value) {
+        try {
+            unsafe {
+                var buffer = new ReadOnlySpan<byte>((byte*)value.data, Convert.ToInt32(value.len));
+                var length = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(buffer);
+                if (4 + length != buffer.Length) {
+                    throw new InternalException("junk remaining in buffer after lifting, something is very wrong!!");
+                }
+                return buffer.Slice(4, length).ToArray();
+            }
+        } finally {
+            RustBuffer.Free(value);
+        }
+    }
+#endif
 
     public override byte[] Read(BigEndianStream stream) {
         var length = stream.ReadInt();
@@ -3240,16 +3277,12 @@ internal static class BenchffiMethods {
 
 
 
-
-
     public static void UFireScalar(uint @times) {
         
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_fire_scalar(FfiConverterUInt32.INSTANCE.Lower(@times), ref _status)
 );
     }
-
-
 
 
 
@@ -3268,16 +3301,12 @@ internal static class BenchffiMethods {
 
 
 
-
-
     public static byte[] UGiveBytes(uint @n) {
         return FfiConverterByteArray.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_give_bytes(FfiConverterUInt32.INSTANCE.Lower(@n), ref _status)
 ));
     }
-
-
 
 
 
@@ -3292,16 +3321,12 @@ internal static class BenchffiMethods {
 
 
 
-
-
     public static BenchRecord[] UGiveRecords(uint @count) {
         return FfiConverterSequenceTypeBenchRecord.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_give_records(FfiConverterUInt32.INSTANCE.Lower(@count), ref _status)
 ));
     }
-
-
 
 
 
@@ -3316,16 +3341,12 @@ internal static class BenchffiMethods {
 
 
 
-
-
     public static string UGiveString(uint @n) {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_give_string(FfiConverterUInt32.INSTANCE.Lower(@n), ref _status)
 ));
     }
-
-
 
 
 
@@ -3340,16 +3361,12 @@ internal static class BenchffiMethods {
 
 
 
-
-
     public static void UNop() {
         
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_nop( ref _status)
 );
     }
-
-
 
 
 
@@ -3364,8 +3381,6 @@ internal static class BenchffiMethods {
 
 
 
-
-
     public static void URegisterStringCallback(StringCallback @cb) {
         
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
@@ -3376,18 +3391,37 @@ internal static class BenchffiMethods {
 
 
 
-
-
     public static ulong UTakeBytes(byte[] @b) {
-        return FfiConverterUInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_take_bytes(FfiConverterByteArray.INSTANCE.Lower(@b), ref _status)
-));
+        
+        return UTakeBytesSpan(
+            @b
+        );
     }
 
 
 
 
+
+
+    /// <summary>
+    /// High-performance variant using ReadOnlySpan&lt;byte&gt; for zero-copy handling.
+    /// String parameters are passed as UTF-8 encoded spans and byte arrays as raw
+    /// spans, avoiding RustBuffer allocations.
+    /// </summary>
+    public static unsafe ulong UTakeBytesSpan(ReadOnlySpan<byte> @b) {
+        UniffiRustCallStatus _status = default;
+        fixed (byte* @bPtr = @b)
+        {
+            var result = _UniFFILib.uniffi_benchffi_fn_func_u_take_bytes_raw(
+                @bPtr,
+                @b.Length,
+                ref _status
+            );
+            _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+
+            return FfiConverterUInt64.INSTANCE.Lift(result);
+        }
+    }
 
 
     public static ulong UTakeMap(Dictionary<string, string> @m) {
@@ -3396,8 +3430,6 @@ internal static class BenchffiMethods {
     _UniFFILib.uniffi_benchffi_fn_func_u_take_map(FfiConverterDictionaryStringString.INSTANCE.Lower(@m), ref _status)
 ));
     }
-
-
 
 
 
@@ -3412,16 +3444,12 @@ internal static class BenchffiMethods {
 
 
 
-
-
     public static ulong UTakeRequest(WindowRequest @r) {
         return FfiConverterUInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_benchffi_fn_func_u_take_request(FfiConverterTypeWindowRequest.INSTANCE.Lower(@r), ref _status)
 ));
     }
-
-
 
 
 
@@ -3439,11 +3467,10 @@ internal static class BenchffiMethods {
 
 
 
-
-
     /// <summary>
-    /// High-performance variant using ReadOnlySpan&lt;byte&gt; for zero-copy string handling.
-    /// String parameters are passed as UTF-8 encoded spans to avoid RustBuffer allocations.
+    /// High-performance variant using ReadOnlySpan&lt;byte&gt; for zero-copy handling.
+    /// String parameters are passed as UTF-8 encoded spans and byte arrays as raw
+    /// spans, avoiding RustBuffer allocations.
     /// </summary>
     public static unsafe ulong UTakeStringSpan(ReadOnlySpan<byte> @sUtf8) {
         UniffiRustCallStatus _status = default;
@@ -3480,11 +3507,10 @@ internal static class BenchffiMethods {
 
 
 
-
-
     /// <summary>
-    /// High-performance variant using ReadOnlySpan&lt;byte&gt; for zero-copy string handling.
-    /// String parameters are passed as UTF-8 encoded spans to avoid RustBuffer allocations.
+    /// High-performance variant using ReadOnlySpan&lt;byte&gt; for zero-copy handling.
+    /// String parameters are passed as UTF-8 encoded spans and byte arrays as raw
+    /// spans, avoiding RustBuffer allocations.
     /// </summary>
     /// <exception cref="BenchException"></exception>
     public static unsafe ulong UTakeStringCheckedSpan(ReadOnlySpan<byte> @sUtf8, bool @shouldFail) {
@@ -3514,8 +3540,6 @@ internal static class BenchffiMethods {
 
 
 
-
-
     public static ulong UTakeStringListJson(string @json) {
         
         var @jsonUtf8 = System.Text.Encoding.UTF8.GetBytes(@json);
@@ -3529,11 +3553,10 @@ internal static class BenchffiMethods {
 
 
 
-
-
     /// <summary>
-    /// High-performance variant using ReadOnlySpan&lt;byte&gt; for zero-copy string handling.
-    /// String parameters are passed as UTF-8 encoded spans to avoid RustBuffer allocations.
+    /// High-performance variant using ReadOnlySpan&lt;byte&gt; for zero-copy handling.
+    /// String parameters are passed as UTF-8 encoded spans and byte arrays as raw
+    /// spans, avoiding RustBuffer allocations.
     /// </summary>
     public static unsafe ulong UTakeStringListJsonSpan(ReadOnlySpan<byte> @jsonUtf8) {
         UniffiRustCallStatus _status = default;
@@ -3558,8 +3581,6 @@ internal static class BenchffiMethods {
     _UniFFILib.uniffi_benchffi_fn_func_u_try_op(FfiConverterBoolean.INSTANCE.Lower(@shouldFail), ref _status)
 );
     }
-
-
 
 
 

@@ -28,6 +28,22 @@ pub unsafe extern "C" fn uniffi_benchffi_fn_func_u_take_string_raw(
     checksum_str(0, s)
 }
 
+/// Bytes span fast path. Copies to own the payload (clipboard-set semantics),
+/// matching csb_take_bytes / u_take_bytes for an apples-to-apples comparison.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn uniffi_benchffi_fn_func_u_take_bytes_raw(
+    ptr: *const u8,
+    len: i32,
+    _status: *mut RustCallStatus,
+) -> u64 {
+    let owned = if ptr.is_null() || len <= 0 {
+        Vec::new()
+    } else {
+        unsafe { std::slice::from_raw_parts(ptr, len as usize) }.to_vec()
+    };
+    owned.len() as u64 ^ (*owned.last().unwrap_or(&0) as u64)
+}
+
 /// Throwing variant: populates the status like generated scaffolding does, via
 /// the public uniffi::rust_call + LowerReturn machinery.
 #[unsafe(no_mangle)]

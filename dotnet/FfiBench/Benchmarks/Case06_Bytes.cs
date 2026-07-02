@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using CsBindgen;
+using SpanApi = uniffi.benchffi_span.BenchffiMethods;
 using Stock = uniffi.benchffi.BenchffiMethods;
 
 namespace FfiBench.Benchmarks;
@@ -30,6 +31,9 @@ public unsafe class Case06_Bytes
 
     [Benchmark]
     public ulong UniffiTake() => Stock.UTakeBytes(_payload);
+
+    [Benchmark]
+    public ulong UniffiSpanTake() => SpanApi.UTakeBytesSpan(_payload);
 
     [Benchmark]
     public int CsbindgenGive()
