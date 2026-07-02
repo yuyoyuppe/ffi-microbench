@@ -32,19 +32,19 @@ internal struct RustBuffer {
     public IntPtr data;
 
     public static RustBuffer Alloc(int size) {
-        return _UniffiHelpers.RustCall((ref UniffiRustCallStatus status) => {
-            var buffer = _UniFFILib.ffi_benchffi_rustbuffer_alloc(Convert.ToUInt64(size), ref status);
-            if (buffer.data == IntPtr.Zero) {
-                throw new AllocationException($"RustBuffer.Alloc() returned null data pointer (size={size})");
-            }
-            return buffer;
-        });
+        var status = new UniffiRustCallStatus();
+        var buffer = _UniFFILib.ffi_benchffi_rustbuffer_alloc(Convert.ToUInt64(size), ref status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref status);
+        if (buffer.data == IntPtr.Zero) {
+            throw new AllocationException($"RustBuffer.Alloc() returned null data pointer (size={size})");
+        }
+        return buffer;
     }
 
     public static void Free(RustBuffer buffer) {
-        _UniffiHelpers.RustCall((ref UniffiRustCallStatus status) => {
-            _UniFFILib.ffi_benchffi_rustbuffer_free(buffer, ref status);
-        });
+        var status = new UniffiRustCallStatus();
+        _UniFFILib.ffi_benchffi_rustbuffer_free(buffer, ref status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref status);
     }
 
     public static BigEndianStream MemoryStream(IntPtr data, long length)
@@ -2475,15 +2475,16 @@ internal class UCounter : IUCounter, IDisposable {
 )) {}
 
     protected void FreeRustArcPtr() {
-        _UniffiHelpers.RustCall((ref UniffiRustCallStatus status) => {
-            _UniFFILib.uniffi_benchffi_fn_free_ucounter(this.pointer, ref status);
-        });
+        var status = new UniffiRustCallStatus();
+        _UniFFILib.uniffi_benchffi_fn_free_ucounter(this.pointer, ref status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref status);
     }
 
     protected ulong CloneRustArcPtr() {
-        return _UniffiHelpers.RustCall((ref UniffiRustCallStatus status) => {
-            return _UniFFILib.uniffi_benchffi_fn_clone_ucounter(this.pointer, ref status);
-        });
+        var status = new UniffiRustCallStatus();
+        var result = _UniFFILib.uniffi_benchffi_fn_clone_ucounter(this.pointer, ref status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref status);
+        return result;
     }
 
     public void Destroy()
@@ -2551,10 +2552,16 @@ internal class UCounter : IUCounter, IDisposable {
 
     
     public ulong Add(ulong @x) {
-        return CallWithPointer(thisPtr => FfiConverterUInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_method_ucounter_add(thisPtr, FfiConverterUInt64.INSTANCE.Lower(@x), ref _status)
-)));
+        IncrementCallCounter();
+        try {
+            var _thisPtr = CloneRustArcPtr();
+        var _status = new UniffiRustCallStatus();
+        var _uniffiResult = _UniFFILib.uniffi_benchffi_fn_method_ucounter_add(_thisPtr, FfiConverterUInt64.INSTANCE.Lower(@x), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+            return FfiConverterUInt64.INSTANCE.Lift(_uniffiResult);
+        } finally {
+            DecrementCallCounter();
+        }
     }
     
     
@@ -3268,20 +3275,19 @@ class FfiConverterDictionaryStringString: FfiConverterRustBuffer<Dictionary<stri
 #pragma warning restore 8625
 internal static class BenchffiMethods {
     public static ulong UAdd(ulong @a, ulong @b) {
-        return FfiConverterUInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_add(FfiConverterUInt64.INSTANCE.Lower(@a), FfiConverterUInt64.INSTANCE.Lower(@b), ref _status)
-));
+        var _status = new UniffiRustCallStatus();
+        var _uniffiResult = _UniFFILib.uniffi_benchffi_fn_func_u_add(FfiConverterUInt64.INSTANCE.Lower(@a), FfiConverterUInt64.INSTANCE.Lower(@b), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+        return FfiConverterUInt64.INSTANCE.Lift(_uniffiResult);
     }
 
 
 
 
     public static void UFireScalar(uint @times) {
-        
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_fire_scalar(FfiConverterUInt32.INSTANCE.Lower(@times), ref _status)
-);
+        var _status = new UniffiRustCallStatus();
+        _UniFFILib.uniffi_benchffi_fn_func_u_fire_scalar(FfiConverterUInt32.INSTANCE.Lower(@times), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
     }
 
 
@@ -3292,100 +3298,96 @@ internal static class BenchffiMethods {
     /// encodes a fresh buffer per call (str_to_utf16).
     /// </summary>
     public static void UFireString(uint @times, uint @msgLen) {
-        
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_fire_string(FfiConverterUInt32.INSTANCE.Lower(@times), FfiConverterUInt32.INSTANCE.Lower(@msgLen), ref _status)
-);
+        var _status = new UniffiRustCallStatus();
+        _UniFFILib.uniffi_benchffi_fn_func_u_fire_string(FfiConverterUInt32.INSTANCE.Lower(@times), FfiConverterUInt32.INSTANCE.Lower(@msgLen), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
     }
 
 
 
 
     public static byte[] UGiveBytes(uint @n) {
-        return FfiConverterByteArray.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_give_bytes(FfiConverterUInt32.INSTANCE.Lower(@n), ref _status)
-));
+        var _status = new UniffiRustCallStatus();
+        var _uniffiResult = _UniFFILib.uniffi_benchffi_fn_func_u_give_bytes(FfiConverterUInt32.INSTANCE.Lower(@n), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+        return FfiConverterByteArray.INSTANCE.Lift(_uniffiResult);
     }
 
 
 
 
     public static Dictionary<string, string> UGiveMap(uint @count) {
-        return FfiConverterDictionaryStringString.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_give_map(FfiConverterUInt32.INSTANCE.Lower(@count), ref _status)
-));
+        var _status = new UniffiRustCallStatus();
+        var _uniffiResult = _UniFFILib.uniffi_benchffi_fn_func_u_give_map(FfiConverterUInt32.INSTANCE.Lower(@count), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+        return FfiConverterDictionaryStringString.INSTANCE.Lift(_uniffiResult);
     }
 
 
 
 
     public static BenchRecord[] UGiveRecords(uint @count) {
-        return FfiConverterSequenceTypeBenchRecord.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_give_records(FfiConverterUInt32.INSTANCE.Lower(@count), ref _status)
-));
+        var _status = new UniffiRustCallStatus();
+        var _uniffiResult = _UniFFILib.uniffi_benchffi_fn_func_u_give_records(FfiConverterUInt32.INSTANCE.Lower(@count), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+        return FfiConverterSequenceTypeBenchRecord.INSTANCE.Lift(_uniffiResult);
     }
 
 
 
 
     public static WindowRequest UGiveRequest() {
-        return FfiConverterTypeWindowRequest.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_give_request( ref _status)
-));
+        var _status = new UniffiRustCallStatus();
+        var _uniffiResult = _UniFFILib.uniffi_benchffi_fn_func_u_give_request(ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+        return FfiConverterTypeWindowRequest.INSTANCE.Lift(_uniffiResult);
     }
 
 
 
 
     public static string UGiveString(uint @n) {
-        return FfiConverterString.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_give_string(FfiConverterUInt32.INSTANCE.Lower(@n), ref _status)
-));
+        var _status = new UniffiRustCallStatus();
+        var _uniffiResult = _UniFFILib.uniffi_benchffi_fn_func_u_give_string(FfiConverterUInt32.INSTANCE.Lower(@n), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+        return FfiConverterString.INSTANCE.Lift(_uniffiResult);
     }
 
 
 
 
     public static string[] UGiveStringList(uint @count) {
-        return FfiConverterSequenceString.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_give_string_list(FfiConverterUInt32.INSTANCE.Lower(@count), ref _status)
-));
+        var _status = new UniffiRustCallStatus();
+        var _uniffiResult = _UniFFILib.uniffi_benchffi_fn_func_u_give_string_list(FfiConverterUInt32.INSTANCE.Lower(@count), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+        return FfiConverterSequenceString.INSTANCE.Lift(_uniffiResult);
     }
 
 
 
 
     public static void UNop() {
-        
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_nop( ref _status)
-);
+        var _status = new UniffiRustCallStatus();
+        _UniFFILib.uniffi_benchffi_fn_func_u_nop(ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
     }
 
 
 
 
     public static void URegisterScalarCallback(ScalarCallback @cb) {
-        
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_register_scalar_callback(FfiConverterTypeScalarCallback.INSTANCE.Lower(@cb), ref _status)
-);
+        var _status = new UniffiRustCallStatus();
+        _UniFFILib.uniffi_benchffi_fn_func_u_register_scalar_callback(FfiConverterTypeScalarCallback.INSTANCE.Lower(@cb), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
     }
 
 
 
 
     public static void URegisterStringCallback(StringCallback @cb) {
-        
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_register_string_callback(FfiConverterTypeStringCallback.INSTANCE.Lower(@cb), ref _status)
-);
+        var _status = new UniffiRustCallStatus();
+        _UniFFILib.uniffi_benchffi_fn_func_u_register_string_callback(FfiConverterTypeStringCallback.INSTANCE.Lower(@cb), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
     }
 
 
@@ -3425,30 +3427,30 @@ internal static class BenchffiMethods {
 
 
     public static ulong UTakeMap(Dictionary<string, string> @m) {
-        return FfiConverterUInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_take_map(FfiConverterDictionaryStringString.INSTANCE.Lower(@m), ref _status)
-));
+        var _status = new UniffiRustCallStatus();
+        var _uniffiResult = _UniFFILib.uniffi_benchffi_fn_func_u_take_map(FfiConverterDictionaryStringString.INSTANCE.Lower(@m), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+        return FfiConverterUInt64.INSTANCE.Lift(_uniffiResult);
     }
 
 
 
 
     public static ulong UTakeRecords(BenchRecord[] @v) {
-        return FfiConverterUInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_take_records(FfiConverterSequenceTypeBenchRecord.INSTANCE.Lower(@v), ref _status)
-));
+        var _status = new UniffiRustCallStatus();
+        var _uniffiResult = _UniFFILib.uniffi_benchffi_fn_func_u_take_records(FfiConverterSequenceTypeBenchRecord.INSTANCE.Lower(@v), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+        return FfiConverterUInt64.INSTANCE.Lift(_uniffiResult);
     }
 
 
 
 
     public static ulong UTakeRequest(WindowRequest @r) {
-        return FfiConverterUInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_take_request(FfiConverterTypeWindowRequest.INSTANCE.Lower(@r), ref _status)
-));
+        var _status = new UniffiRustCallStatus();
+        var _uniffiResult = _UniFFILib.uniffi_benchffi_fn_func_u_take_request(FfiConverterTypeWindowRequest.INSTANCE.Lower(@r), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+        return FfiConverterUInt64.INSTANCE.Lift(_uniffiResult);
     }
 
 
@@ -3531,10 +3533,10 @@ internal static class BenchffiMethods {
 
 
     public static ulong UTakeStringList(string[] @v) {
-        return FfiConverterUInt64.INSTANCE.Lift(
-    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_take_string_list(FfiConverterSequenceString.INSTANCE.Lower(@v), ref _status)
-));
+        var _status = new UniffiRustCallStatus();
+        var _uniffiResult = _UniFFILib.uniffi_benchffi_fn_func_u_take_string_list(FfiConverterSequenceString.INSTANCE.Lower(@v), ref _status);
+        _UniffiHelpers.CheckCallStatus(NullCallStatusErrorHandler.INSTANCE, ref _status);
+        return FfiConverterUInt64.INSTANCE.Lift(_uniffiResult);
     }
 
 
@@ -3576,10 +3578,9 @@ internal static class BenchffiMethods {
 
     /// <exception cref="BenchException"></exception>
     public static void UTryOp(bool @shouldFail) {
-        
-    _UniffiHelpers.RustCallWithError(FfiConverterTypeBenchError.INSTANCE, (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_benchffi_fn_func_u_try_op(FfiConverterBoolean.INSTANCE.Lower(@shouldFail), ref _status)
-);
+        var _status = new UniffiRustCallStatus();
+        _UniFFILib.uniffi_benchffi_fn_func_u_try_op(FfiConverterBoolean.INSTANCE.Lower(@shouldFail), ref _status);
+        _UniffiHelpers.CheckCallStatus(FfiConverterTypeBenchError.INSTANCE, ref _status);
     }
 
 
