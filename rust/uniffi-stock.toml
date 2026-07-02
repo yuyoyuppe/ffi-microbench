@@ -1,0 +1,4 @@
+# Stock uniffi-bindgen-cs codegen (classic RustBuffer string path).
+[bindings.csharp]
+namespace = "uniffi.benchffi"
+cdylib_name = "benchffi"

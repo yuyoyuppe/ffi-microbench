@@ -1,0 +1,6 @@
+# Fork's high-performance span string path: generates ReadOnlySpan<byte> variants
+# calling *_raw exports, and standard string overloads transparently delegate to them.
+[bindings.csharp]
+namespace = "uniffi.benchffi_span"
+cdylib_name = "benchffi"
+high_performance_strings = true
