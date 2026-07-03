@@ -2365,53 +2365,6 @@ class FfiConverterString: FfiConverter<string, RustBuffer> {
     }
 }
 
-/// <summary>
-/// High-performance string converter that uses ReadOnlySpan&lt;byte&gt; for zero-copy UTF-8 handling.
-/// This avoids RustBuffer allocations and reduces FFI overhead.
-///
-/// Generated when high_performance_strings = true in uniffi.toml
-/// </summary>
-class FfiConverterStringSpan {
-    public static FfiConverterStringSpan INSTANCE = new FfiConverterStringSpan();
-
-    /// <summary>
-    /// Lift: Convert raw pointer + length to ReadOnlySpan&lt;byte&gt; (zero-copy).
-    /// Used when Rust returns string data to C# (e.g., in callbacks).
-    ///
-    /// SAFETY: The pointer must remain valid for the span's lifetime.
-    /// In practice, this is only used in callbacks where Rust owns the data
-    /// for the duration of the callback.
-    /// </summary>
-    public unsafe ReadOnlySpan<byte> LiftRaw(IntPtr ptr, int length) {
-        if (ptr == IntPtr.Zero || length <= 0) {
-            return ReadOnlySpan<byte>.Empty;
-        }
-        return new ReadOnlySpan<byte>(ptr.ToPointer(), length);
-    }
-
-    /// <summary>
-    /// Convert C# string to UTF-8 byte array.
-    /// Used by standard API to convert string to span.
-    /// </summary>
-    public static byte[] StringToUtf8(string value) {
-        if (string.IsNullOrEmpty(value)) {
-            return Array.Empty<byte>();
-        }
-        return System.Text.Encoding.UTF8.GetBytes(value);
-    }
-
-    /// <summary>
-    /// Convert UTF-8 span to C# string.
-    /// Used when C# code needs a string from span.
-    /// </summary>
-    public static string Utf8ToString(ReadOnlySpan<byte> span) {
-        if (span.IsEmpty) {
-            return string.Empty;
-        }
-        return System.Text.Encoding.UTF8.GetString(span);
-    }
-}
-
 
 
 

@@ -23,6 +23,10 @@ param(
     [switch]$Quick,
     # Stop after the smoke verification.
     [switch]$SmokeOnly,
+    # Run the multi-threaded stability/leak stress phases (after smoke, before benchmarks).
+    [switch]$Stress,
+    # Main-phase duration per stress flavor, in seconds.
+    [int]$StressSeconds = 20,
     # Skip uniffi-bindgen-cs codegen (reuse the committed Generated/ bindings).
     [switch]$SkipCodegen,
     # Path to the uniffi-bindgen-cs fork checkout (span_feature branch).
@@ -81,6 +85,11 @@ Invoke-Step "dotnet build -c Release" {
 $benchDll = Join-Path $projDir 'bin\Release\net8.0\FfiBench.dll'
 Invoke-Step "smoke: csbindgen + stock uniffi" { dotnet $benchDll --smoke }
 Invoke-Step "smoke: span-flavor uniffi" { dotnet $benchDll --smoke-span }
+
+if ($Stress) {
+    Invoke-Step "stress: csbindgen + stock uniffi ($StressSeconds s)" { dotnet $benchDll --stress $StressSeconds }
+    Invoke-Step "stress: span-flavor uniffi ($StressSeconds s)" { dotnet $benchDll --stress-span $StressSeconds }
+}
 
 if ($SmokeOnly) {
     Write-Host "smoke passed; -SmokeOnly set, stopping here." -ForegroundColor Green

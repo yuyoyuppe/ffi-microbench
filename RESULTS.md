@@ -1,15 +1,17 @@
-# Results — 2026-07-02 (x64, fork @ b89b258)
+# Results — 2026-07-02 (x64, fork @ e01fcea)
 
 Environment: AMD Ryzen 9 7950X, Windows 11 26200, .NET 8.0.28 (net8.0, LibraryImport paths
 active), rustc 1.88.0, BenchmarkDotNet 0.15.2 (default job, MemoryDiagnoser).
-uniffi-bindgen-cs fork: `span_feature @ b89b258` (uniffi-rs 0.31). arm64: not yet measured.
+uniffi-bindgen-cs fork: `span_feature @ e01fcea` (uniffi-rs 0.31). arm64: not yet measured.
 
-Second snapshot, after three fork optimization commits (previous snapshot: `15daf0b`,
-see git history of this file):
+Second snapshot, after the fork optimization commits (the branch has since been rebuilt
+into four PR-clean commits; hashes below refer to that history — measurements were taken
+on the same content):
 
-- `2cc7bfd` lift strings/bytes without intermediate copies on .NET 8+
-- `953582a` extend the span fast path to byte-array arguments
-- `b89b258` emit sync calls without per-call closure allocations
+- `c871995` lift strings/bytes without intermediate copies on .NET 8+
+- `19281a1` emit sync calls without per-call closure allocations
+- `0f4dad8` span fast path for string arguments (squashed feature + fixes)
+- `e01fcea` extend the span fast path to byte-array arguments
 
 Acceptance bar: best applicable uniffi variant ≤ **1.1×** csbindgen ns/op, OR absolute cost
 on the order of **< 50 ns/op**. Callbacks additionally: zero steady-state managed

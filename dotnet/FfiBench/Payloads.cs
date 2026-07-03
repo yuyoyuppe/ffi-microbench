@@ -19,58 +19,72 @@ internal static class Payloads
     private static readonly Dictionary<int, byte[]> BytesCache = new();
     private static readonly Dictionary<int, string[]> ListCache = new();
 
+    // Caches are locked: benchmarks only touch them in GlobalSetup, but the
+    // stress harness calls them from many threads concurrently.
     public static string AsciiString(int n)
     {
-        if (StringCache.TryGetValue(n, out var cached))
+        lock (StringCache)
         {
-            return cached;
+            if (StringCache.TryGetValue(n, out var cached))
+            {
+                return cached;
+            }
+            const string pattern = "ffi-microbench-payload-0123456789-";
+            var sb = new StringBuilder(n + pattern.Length);
+            while (sb.Length < n)
+            {
+                sb.Append(pattern);
+            }
+            var s = sb.ToString(0, n);
+            StringCache[n] = s;
+            return s;
         }
-        const string pattern = "ffi-microbench-payload-0123456789-";
-        var sb = new StringBuilder(n + pattern.Length);
-        while (sb.Length < n)
-        {
-            sb.Append(pattern);
-        }
-        var s = sb.ToString(0, n);
-        StringCache[n] = s;
-        return s;
     }
 
     public static byte[] AsciiStringUtf8(int n)
     {
-        if (!Utf8Cache.TryGetValue(n, out var cached))
+        lock (Utf8Cache)
         {
-            Utf8Cache[n] = cached = Encoding.UTF8.GetBytes(AsciiString(n));
+            if (!Utf8Cache.TryGetValue(n, out var cached))
+            {
+                Utf8Cache[n] = cached = Encoding.UTF8.GetBytes(AsciiString(n));
+            }
+            return cached;
         }
-        return cached;
     }
 
     public static byte[] Bytes(int n)
     {
-        if (!BytesCache.TryGetValue(n, out var cached))
+        lock (BytesCache)
         {
-            cached = new byte[n];
-            for (int i = 0; i < n; i++)
+            if (!BytesCache.TryGetValue(n, out var cached))
             {
-                cached[i] = (byte)(i % 251);
+                cached = new byte[n];
+                for (int i = 0; i < n; i++)
+                {
+                    cached[i] = (byte)(i % 251);
+                }
+                BytesCache[n] = cached;
             }
-            BytesCache[n] = cached;
+            return cached;
         }
-        return cached;
     }
 
     public static string[] StringList(int count)
     {
-        if (!ListCache.TryGetValue(count, out var cached))
+        lock (ListCache)
         {
-            cached = new string[count];
-            for (int i = 0; i < count; i++)
+            if (!ListCache.TryGetValue(count, out var cached))
             {
-                cached[i] = $"hotkey-item-{i:D5}";
+                cached = new string[count];
+                for (int i = 0; i < count; i++)
+                {
+                    cached[i] = $"hotkey-item-{i:D5}";
+                }
+                ListCache[count] = cached;
             }
-            ListCache[count] = cached;
+            return cached;
         }
-        return cached;
     }
 
     public static List<RecordDto> RecordDtos(int count)
