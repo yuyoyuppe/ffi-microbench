@@ -22,3 +22,9 @@ csbindgen = "1.9"
 lto = true
 codegen-units = 1
 opt-level = 3
+
+# uniffi-rs fork: uniffi_macros emits the `_raw` span-sibling scaffolding exports
+# consumed by the bindgen fork's high_performance_strings bindings (branch
+# raw-scaffolding, single commit on the v0.31.2 tag; rev-pinned for reproducibility).
+[patch.crates-io]
+uniffi = { git = "https://github.com/yuyoyuppe/uniffi-rs", rev = "38ba77297cf0b0145a469ef4fc7ae13c78c17ecc" }
